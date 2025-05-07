@@ -1,0 +1,11 @@
+FlowershopApp/
+│
+├── FlowershopApp.swift         // Точка входа в приложение (App)
+├── Models.swift                // Основные модели: Product, UserStore
+├── AuthView.swift              // Экран регистрации и авторизации
+├── MainTabView.swift           // TabView с переключением между основными разделами
+├── HomeView.swift              // Главная страница (популярное, все товары)
+├── GalleryView.swift           // Галерея (все 15 товаров, описания, цена, избранное)
+├── FavoritesView.swift         // Избранные товары пользователя
+├── ProfileView.swift           // Профиль пользователя
+└── SettingsView.swift          // Страница настроек (очистка, версия)
