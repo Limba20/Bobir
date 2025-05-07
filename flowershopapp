@@ -9,3 +9,506 @@ FlowershopApp/
 ├── FavoritesView.swift         // Избранные товары пользователя
 ├── ProfileView.swift           // Профиль пользователя
 └── SettingsView.swift          // Страница настроек (очистка, версия)
+
+
+1. FlowershopApp.swift (точка входа)
+import SwiftUI
+
+@main
+struct FlowershopApp: App {
+    @StateObject var userStore = UserStore()
+
+    var body: some Scene {
+        WindowGroup {
+            if userStore.isSignedIn {
+                MainTabView()
+                    .environmentObject(userStore)
+            } else {
+                AuthView()
+                    .environmentObject(userStore)
+            }
+        }
+    }
+}
+
+2. Models.swift (модели товаров и пользователя)
+import Foundation
+
+struct Product: Identifiable, Equatable {
+    let id = UUID()
+    let name: String
+    let description: String
+    let price: Double
+    let imageURL: String
+    var isPopular: Bool = false
+}
+
+class UserStore: ObservableObject {
+    @Published var isSignedIn: Bool = UserDefaults.standard.bool(forKey: "isSignedIn")
+    @Published var favorites: [Product] = []
+    @Published var userEmail: String = UserDefaults.standard.string(forKey: "userEmail") ?? ""
+
+    // Продукты приложения (15 цветов)
+    @Published var products: [Product] = [
+        Product(name: "Роза", description: "Классическая красная роза.", price: 249, imageURL: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80", isPopular: true),
+        Product(name: "Тюльпан", description: "Весенний яркий тюльпан.", price: 149, imageURL: "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=400&q=80"),
+        Product(name: "Пион", description: "Пышные и ароматные пионы.", price: 399, imageURL: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80", isPopular: true),
+        Product(name: "Гербера", description: "Яркая гербера.", price: 139, imageURL: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=80"),
+        Product(name: "Лилия", description: "Белоснежная лилия.", price: 299, imageURL: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=400&q=80", isPopular: true),
+        Product(name: "Астра", description: "Осенние астры разных цветов.", price: 129, imageURL: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80"),
+        Product(name: "Фиалка", description: "Нежная комнатная фиалка.", price: 99, imageURL: "https://images.unsplash.com/photo-1461344577544-4e5dc9487184?auto=format&fit=crop&w=400&q=80"),
+        Product(name: "Гортензия", description: "Объёмные гортензии.", price: 249, imageURL: "https://images.unsplash.com/photo-1455656678494-4d1b5f3e7ad3?auto=format&fit=crop&w=400&q=80"),
+        Product(name: "Нарцисс", description: "Жёлтый нарцисс.", price: 89, imageURL: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=400&q=80"),
+        Product(name: "Сирень", description: "Запах весны — сирень.", price: 159, imageURL: "https://images.unsplash.com/photo-1465101178521-c1a73ff3ae54?auto=format&fit=crop&w=400&q=80"),
+        Product(name: "Хризантема", description: "Осенние хризантемы.", price: 189, imageURL: "https://images.unsplash.com/photo-1504196606672-aef5c9cefc92?auto=format&fit=crop&w=400&q=80"),
+        Product(name: "Ромашка", description: "Летняя ромашка.", price: 79, imageURL: "https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&w=400&q=80"),
+        Product(name: "Орхидея", description: "Экзотичная орхидея.", price: 599, imageURL: "https://images.unsplash.com/photo-1454023492550-5696f8ff10e1?auto=format&fit=crop&w=400&q=80", isPopular: true),
+        Product(name: "Альстромерия", description: "Изящная альстромерия.", price: 239, imageURL: "https://images.unsplash.com/photo-1468421870903-4df1664ac249?auto=format&fit=crop&w=400&q=80"),
+        Product(name: "Гладиолус", description: "Величественный гладиолус.", price: 209, imageURL: "https://images.unsplash.com/photo-1470167290877-7d5d3446de4c?auto=format&fit=crop&w=400&q=80")
+    ]
+
+    func signUp(email: String, password: String) -> Bool {
+        // Простая авторизация
+        UserDefaults.standard.set(email, forKey: "userEmail")
+        UserDefaults.standard.set(password, forKey: "userPassword")
+        UserDefaults.standard.set(true, forKey: "isSignedIn")
+        DispatchQueue.main.async {
+            self.isSignedIn = true
+            self.userEmail = email
+        }
+        return true
+    }
+
+    func signIn(email: String, password: String) -> Bool {
+        let savedEmail = UserDefaults.standard.string(forKey: "userEmail")
+        let savedPassword = UserDefaults.standard.string(forKey: "userPassword")
+        if savedEmail == email && savedPassword == password {
+            UserDefaults.standard.set(true, forKey: "isSignedIn")
+            DispatchQueue.main.async {
+                self.isSignedIn = true
+                self.userEmail = email
+            }
+            return true
+        }
+        return false
+    }
+
+    func signOut() {
+        UserDefaults.standard.set(false, forKey: "isSignedIn")
+        DispatchQueue.main.async {
+            self.isSignedIn = false
+            self.userEmail = ""
+        }
+    }
+
+    func addFavorite(_ product: Product) {
+        if !favorites.contains(product) {
+            favorites.append(product)
+        }
+    }
+
+    func removeFavorite(_ product: Product) {
+        favorites.removeAll { $0 == product }
+    }
+}
+
+3. AuthView.swift (регистрация и авторизация)
+import SwiftUI
+
+struct AuthView: View {
+    @EnvironmentObject var userStore: UserStore
+    @State private var email = ""
+    @State private var password = ""
+    @State private var isLoginMode = true
+    @State private var showError = false
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text(isLoginMode ? "Вход" : "Регистрация")
+                .font(.largeTitle)
+                .bold()
+            TextField("E-mail", text: $email)
+                .autocapitalization(.none)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            SecureField("Пароль", text: $password)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            Button(isLoginMode ? "Войти" : "Создать аккаунт") {
+                if isLoginMode {
+                    let success = userStore.signIn(email: email, password: password)
+                    if !success { showError = true }
+                } else {
+                    _ = userStore.signUp(email: email, password: password)
+                }
+            }
+            .padding()
+            .foregroundColor(.white)
+            .background(Color.blue)
+            .cornerRadius(10)
+
+            Button(isLoginMode ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти") {
+                isLoginMode.toggle()
+            }
+            .font(.subheadline)
+
+            if showError {
+                Text("Ошибка входа. Проверьте почту и пароль.")
+                    .foregroundColor(.red)
+                    .font(.footnote)
+            }
+        }
+        .padding()
+    }
+}
+
+4. MainTabView.swift (главная таб-навиация)
+import SwiftUI
+
+struct MainTabView: View {
+    var body: some View {
+        TabView {
+            HomeView()
+                .tabItem {
+                    Image(systemName: "house.fill")
+                    Text("Главная")
+                }
+            GalleryView()
+                .tabItem {
+                    Image(systemName: "photo.on.rectangle.angled")
+                    Text("Галерея")
+                }
+            FavoritesView()
+                .tabItem {
+                    Image(systemName: "heart.fill")
+                    Text("Избранные")
+                }
+            ProfileView()
+                .tabItem {
+                    Image(systemName: "person.crop.circle")
+                    Text("Профиль")
+                }
+            SettingsView()
+                .tabItem {
+                    Image(systemName: "gearshape.fill")
+                    Text("Настройки")
+                }
+        }
+    }
+}
+
+5. HomeView.swift (главная страница с популярными и всеми товарами)
+import SwiftUI
+
+struct HomeView: View {
+    @EnvironmentObject var userStore: UserStore
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading) {
+                    Text("Популярные товары")
+                        .font(.headline)
+                        .padding(.leading)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack {
+                            ForEach(userStore.products.filter { $0.isPopular }) { product in
+                                ProductCard(product: product)
+                            }
+                        }
+                        .padding(.leading)
+                    }
+                    Divider().padding(.top)
+                    Text("Все товары")
+                        .font(.headline)
+                        .padding([.leading, .top])
+                    ForEach(userStore.products) { product in
+                        ProductRowView(product: product)
+                            .padding(.horizontal)
+                            .padding(.vertical, 4)
+                    }
+                }
+            }
+            .navigationTitle("Цветочный магазин")
+        }
+    }
+}
+
+struct ProductCard: View {
+    let product: Product
+    var body: some View {
+        VStack {
+            AsyncImage(url: URL(string: product.imageURL)) { img in
+                img
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 120, height: 120)
+                    .clipped()
+            } placeholder: {
+                Color.gray.opacity(0.3)
+                    .frame(width: 120, height: 120)
+            }
+            Text(product.name)
+                .font(.subheadline)
+                .bold()
+            Text("от \(Int(product.price))₽")
+                .font(.footnote)
+                .foregroundColor(.gray)
+        }
+        .frame(width: 130, height: 180)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(radius: 2)
+        .padding(4)
+    }
+}
+
+struct ProductRowView: View {
+    let product: Product
+    @EnvironmentObject var userStore: UserStore
+
+    var body: some View {
+        HStack {
+            AsyncImage(url: URL(string: product.imageURL)) { img in
+                img.resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 60, height: 60)
+                    .clipped()
+            } placeholder: {
+                Color.gray.opacity(0.3)
+                    .frame(width: 60, height: 60)
+            }
+            VStack(alignment: .leading) {
+                Text(product.name)
+                    .font(.headline)
+                Text(product.description)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                Text("\(Int(product.price))₽")
+                    .font(.subheadline)
+                    .foregroundColor(.black)
+            }
+            Spacer()
+            Button(action: {
+                if userStore.favorites.contains(product) {
+                    userStore.removeFavorite(product)
+                } else {
+                    userStore.addFavorite(product)
+                }
+            }) {
+                Image(systemName: userStore.favorites.contains(product) ? "heart.fill" : "heart")
+                    .foregroundColor(.red)
+            }
+        }
+    }
+}
+
+6. GalleryView.swift (галерея с 15 товарами, описанием, ценой, добавлением в избранное)
+
+import SwiftUI
+
+struct GalleryView: View {
+    @EnvironmentObject var userStore: UserStore
+
+    let columns = [
+        GridItem(.flexible()), GridItem(.flexible())
+    ]
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(userStore.products) { product in
+                        ProductGalleryCard(product: product)
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Галерея")
+        }
+    }
+}
+
+struct ProductGalleryCard: View {
+    @EnvironmentObject var userStore: UserStore
+    let product: Product
+
+    var body: some View {
+        VStack {
+            AsyncImage(url: URL(string: product.imageURL)) { img in
+                img.resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: 120)
+                    .clipped()
+            } placeholder: {
+                Color.gray.opacity(0.3).frame(height: 120)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(product.name).font(.headline)
+                Text(product.description)
+                    .font(.caption)
+                    .lineLimit(2)
+                Text("\(Int(product.price))₽")
+                    .font(.subheadline)
+                    .bold()
+            }
+            Button(action: {
+                if userStore.favorites.contains(product) {
+                    userStore.removeFavorite(product)
+                } else {
+                    userStore.addFavorite(product)
+                }
+            }) {
+                HStack {
+                    Image(systemName: userStore.favorites.contains(product) ? "heart.fill" : "heart")
+                    Text(userStore.favorites.contains(product) ? "Избранное" : "В избранное")
+                }
+                .padding(6)
+                .foregroundColor(.white)
+                .background(Color.pink)
+                .cornerRadius(8)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(14)
+        .shadow(radius: 1)
+    }
+}
+
+
+7. FavoritesView.swift (избранные товары)
+import SwiftUI
+
+struct FavoritesView: View {
+    @EnvironmentObject var userStore: UserStore
+
+    var body: some View {
+        NavigationView {
+            List {
+                if userStore.favorites.isEmpty {
+                    Text("Нет избранных товаров.")
+                        .foregroundColor(.gray)
+                        .padding()
+                } else {
+                    ForEach(userStore.favorites) { product in
+                        HStack {
+                            AsyncImage(url: URL(string: product.imageURL)) { img in
+                                img.resizable()
+                                    .frame(width: 50, height: 50)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            } placeholder: {
+                                Color.gray.opacity(0.3).frame(width: 50, height: 50)
+                            }
+                            VStack(alignment: .leading) {
+                                Text(product.name).bold()
+                                Text("\(Int(product.price))₽")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            Spacer()
+                            Button(action: {
+                                userStore.removeFavorite(product)
+                            }) {
+                                Image(systemName: "heart.slash")
+                                    .foregroundColor(.red)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Избранные")
+        }
+    }
+}
+
+8. ProfileView.swift (профиль пользователя)
+import SwiftUI
+
+struct ProfileView: View {
+    @EnvironmentObject var userStore: UserStore
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 30) {
+                Image(systemName: "person.crop.circle")
+                    .resizable()
+                    .frame(width: 100, height: 100)
+                    .foregroundColor(.blue)
+                    .padding(.top)
+
+                Text("Почта:")
+                    .font(.headline)
+                Text(userStore.userEmail)
+                    .font(.title3)
+                    .foregroundColor(.gray)
+
+                Button(action: {
+                    userStore.signOut()
+                }) {
+                    Text("Выйти из аккаунта")
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(12)
+                }
+                .padding(.top, 40)
+
+                Spacer()
+            }
+            .navigationTitle("Профиль")
+            .padding()
+        }
+    }
+}
+
+9. SettingsView.swift (настройки)
+
+import SwiftUI
+
+struct SettingsView: View {
+    @EnvironmentObject var userStore: UserStore
+    @State private var showResetAlert = false
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Данные")) {
+                    Button("Очистить избранное") {
+                        userStore.favorites.removeAll()
+                    }
+                    .foregroundColor(.red)
+                }
+                Section(header: Text("О приложении")) {
+                    HStack {
+                        Text("Цветочный магазин")
+                        Spacer()
+                        Text("v1.0")
+                            .foregroundColor(.gray)
+                    }
+                    HStack {
+                        Text("Разработчик")
+                        Spacer()
+                        Text("AI")
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
+            .navigationTitle("Настройки")
+        }
+    }
+}
+
+
+
+
+
+
+В появившемся окне выбери iOS > App и нажми “Next”.
+Заполни:
+Product Name: (например, Flowershop)
+Interface: SwiftUI
+Language: Swift
+Не выбирай Core Data или Tests (необязательно).
+
+
+ верхней части окна Xcode выбери симулятор iPhone ("iPhone 15")
